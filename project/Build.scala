@@ -16,6 +16,7 @@ object ApplicationBuild extends Build {
 
   val main = Project(appName, file(".")).enablePlugins(play.PlayScala).settings(
     scalaVersion := "2.11.7",
+    organization := "fr.valwin",
     version := appVersion,
     libraryDependencies ++= appDependencies,
     publishTo := Some("valwin-snapshots" at "http://nexus.valwin.fr/nexus/content/repositories/valwin-snapshots"),
