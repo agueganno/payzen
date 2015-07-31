@@ -146,7 +146,7 @@ object PayzenService {
   def parse = BodyParser {
     BodyParsers.parse.urlFormEncoded.andThen {
       iteratee =>
-        iteratee.mapDone{
+        iteratee.map{
           either => either.fold(
             error => Left(error),
             data =>  verifySignature(data.filter(!_._2.isEmpty).map(pair => pair._1 -> pair._2.head).toMap).fold(

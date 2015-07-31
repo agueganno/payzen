@@ -1,11 +1,12 @@
 package fr.valwin.payzen
 
-import play.api.libs.ws.{Response, WS}
+import play.api.libs.ws.{WSResponse, WS}
 import play.mvc.Http
-import play.api.templates.Xml
+import play.twirl.api.Xml
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import play.api.Logger
+import play.api.Play.current
 
 /**
  * @author Valentin Kasas
@@ -21,7 +22,7 @@ object PayzenWebservice {
       "SOAPAction" -> ""
     ).post(body)
 
-  def analyzeResponse(response: Response):Either[String, Map[String, String]] = {
+  def analyzeResponse(response: WSResponse):Either[String, Map[String, String]] = {
      if(Set(200, 201).contains(response.status)){
        val ret = (response.xml \\ "return")
        Right(ret(0).map{elem =>

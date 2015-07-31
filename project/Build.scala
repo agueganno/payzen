@@ -1,20 +1,23 @@
 import sbt._
 import Keys._
+import play.Play.autoImport._
+import PlayKeys._
+
 
 object ApplicationBuild extends Build {
 
   val appName         = "payzen-module"
-  val appVersion      = "1.1-SNAPSHOT"
+  val appVersion      = "1.2-SNAPSHOT"
 
   val appDependencies = Seq(
-    "net.databinder.dispatch" %% "dispatch-core" % "0.11.0"
+    ws,
+    "net.databinder.dispatch" %% "dispatch-core" % "0.11.2"
   )
 
-
-
-  val main = play.Project(appName, appVersion, appDependencies).settings(
-    organization := "fr.valwin",
-    publishMavenStyle := true,
+  val main = Project(appName, file(".")).enablePlugins(play.PlayScala).settings(
+    scalaVersion := "2.11.7",
+    version := appVersion,
+    libraryDependencies ++= appDependencies,
     publishTo := Some("valwin-snapshots" at "http://nexus.valwin.fr/nexus/content/repositories/valwin-snapshots"),
     credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
   )
