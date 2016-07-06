@@ -1,13 +1,43 @@
 package fr.valwin.payzen
 
-import play.api.mvc.{Results, BodyParsers, BodyParser}
-import play.api.Play.current
+import play.api.mvc.{BodyParser, BodyParsers, Results}
 import play.api.libs.concurrent.Execution.Implicits._
 import org.joda.time.DateTime
 import javax.xml.datatype.DatatypeFactory
 import java.util.GregorianCalendar
-import org.joda.time.format.DateTimeFormat
 
+import org.joda.time.format.DateTimeFormat
+import play.api.libs.json.Json
+
+case class ClientParameters(
+                             vads_version: String,
+                             vads_currency: String,
+                             vads_page_action: String,
+                             vads_payment_config: String,
+                             vads_action_mode: String,
+                             vads_ctx_mode: String,
+                             vads_site_id: String
+                           ){
+  lazy val toMap = Map(
+    "vads_version" -> vads_version,
+    "vads_currency" -> vads_currency,
+    "vads_page_action" -> vads_page_action,
+    "vads_payment_config" -> vads_payment_config,
+    "vads_action_mode" -> vads_action_mode,
+    "vads_ctx_mode" -> vads_ctx_mode,
+    "vads_site_id" -> vads_site_id
+  )
+}
+
+object ClientParameters {
+  implicit val formatter = Json.format[ClientParameters]
+}
+
+case class PayzenData(certificate: String, clientParameters: ClientParameters)
+
+object PayzenData {
+  implicit val formatter = Json.format[PayzenData]
+}
 /**
  * @author Valentin Kasas
  */
@@ -82,7 +112,7 @@ object PayzenService {
 
   private def checkMandatoryParameters(params: Data):Either[PayzenError, Data] = {
     val missingMandatory = mandatoryKeys -- params.keySet.intersect(mandatoryKeys)
-    if(!missingMandatory.isEmpty){
+    if(missingMandatory.nonEmpty){
       Left(MissingMandatoryParameter(missingMandatory))
     } else {
       Right(params)
@@ -102,9 +132,7 @@ object PayzenService {
    *         or a MissingMandatoryParameter containing the missing keys
    *
    */
-  def verifyAndSign(parameters: Data):Either[PayzenError,Data] = {
-    import play.api.Play.current
-    val certificate = current.plugin[PayzenPlugin].get.getCertificate
+  def verifyAndSign(certificate: String, parameters: Data):Either[PayzenError,Data] = {
     val data = parameters + ("signature" -> Signature.computeHash(parameters.filterKeys(_.startsWith("vads_")), certificate))
     checkMandatoryParameters(data)
   }
@@ -118,13 +146,11 @@ object PayzenService {
    *         or SignatureError if the signature does not match the data + certificate
    *         or the data itself if the signature is correct
    */
-  def verifySignature(data:Data):Either[PayzenError, Data] = {
+  def verifySignature(certificate: String, data:Data):Either[PayzenError, Data] = {
     if(!data.contains("signature")){
       Left(MissingSignature)
     } else {
-      import play.api.Play.current
       val signature = data("signature")
-      val certificate = current.plugin[PayzenPlugin].get.getCertificate
       if(Signature.computeHash(data.filterKeys(_.startsWith("vads_")), certificate) != signature) {
         Left(SignatureError)
       } else {
@@ -133,23 +159,18 @@ object PayzenService {
     }
   }
 
-  def prepareData[T](basket: T)(implicit basket2Data: T => Data):Either[PayzenError, Data] = {
-    import play.api.Play.current
-    val plugin = current.plugin[PayzenPlugin]
-
-    if(plugin.isDefined){
-        val parameters = plugin.get.defaultParameters ++ basket2Data(basket)
-        verifyAndSign(parameters)
-    } else Left(PayzenPluginError)
+  def prepareData[T](basket: T)(implicit basket2Data: T => Data, clientData: PayzenData):Either[PayzenError, Data] = {
+    val parameters = clientData.clientParameters.toMap ++ basket2Data(basket)
+    verifyAndSign(clientData.certificate, parameters)
   }
 
-  def parse = BodyParser {
+  def parse(certificate: String) = BodyParser {
     BodyParsers.parse.urlFormEncoded.andThen {
       iteratee =>
         iteratee.map{
           either => either.fold(
             error => Left(error),
-            data =>  verifySignature(data.filter(!_._2.isEmpty).map(pair => pair._1 -> pair._2.head).toMap).fold(
+            data =>  verifySignature(certificate, data.filter(_._2.nonEmpty).map(pair => pair._1 -> pair._2.head).toMap).fold(
               payzenError => Left(Results.BadRequest),
               verifiedData => Right(verifiedData)
             )
@@ -164,10 +185,10 @@ object PayzenService {
     DatatypeFactory.newInstance().newXMLGregorianCalendar(xmlDate)
   }
 
-  def confirmOrder(transDate: DateTime, transId: String, seqNb:Int, amount: Long, remiseDate:DateTime ) = {
-    val shopId = current.configuration.getString("payzen.defaults.vads_site_id").get
-    val mode = current.configuration.getString("payzen.defaults.vads_ctx_mode").get
-    val currency = current.configuration.getInt("payzen.defaults.vads_currency").get
+  def confirmOrder(transDate: DateTime, transId: String, seqNb:Int, amount: Long, remiseDate:DateTime )(implicit clientData: PayzenData) = {
+    val shopId = clientData.clientParameters.vads_site_id
+    val mode = clientData.clientParameters.vads_ctx_mode
+    val currency = clientData.clientParameters.vads_currency.toInt
     val format = DateTimeFormat.forPattern("YYYYMMdd").withZoneUTC()
     val parameters:Map[String, String] = Map(
       "1" -> shopId,
@@ -180,13 +201,23 @@ object PayzenService {
       "8" -> format.print(remiseDate),
       "9" -> ""
     )
-    val certificate = current.plugin[PayzenPlugin].get.getCertificate
-    PayzenWebservice.modifyAndValidate(shopId, toXMLDate(transDate), transId, seqNb, mode, amount, currency,  toXMLDate(remiseDate), "",  Signature.computeHash(parameters, certificate))
+    PayzenWebservice.modifyAndValidate(
+      shopId,
+      toXMLDate(transDate),
+      transId,
+      seqNb,
+      mode,
+      amount,
+      currency,
+      toXMLDate(remiseDate),
+      "",
+      Signature.computeHash(parameters, clientData.certificate)
+    )
   }
 
-  def cancelOrder(transDate: DateTime, transId: String, seqNb:Int, amount: Long, remiseDate:DateTime ) = {
-    val shopId = current.configuration.getString("payzen.defaults.vads_site_id").get
-    val mode = current.configuration.getString("payzen.defaults.vads_ctx_mode").get
+  def cancelOrder(transDate: DateTime, transId: String, seqNb:Int, amount: Long, remiseDate:DateTime)(implicit clientData: PayzenData) = {
+    val shopId = clientData.clientParameters.vads_site_id
+    val mode = clientData.clientParameters.vads_ctx_mode
     val format = DateTimeFormat.forPattern("YYYYMMdd").withZoneUTC()
     val parameters:Map[String, String] = Map(
       "1" -> shopId,
@@ -196,8 +227,7 @@ object PayzenService {
       "5" -> mode,
       "6" -> ""
     )
-    val certificate = current.plugin[PayzenPlugin].get.getCertificate
-    PayzenWebservice.cancel(shopId, toXMLDate(transDate), transId, seqNb, mode, "",  Signature.computeHash(parameters, certificate))
+    PayzenWebservice.cancel(shopId, toXMLDate(transDate), transId, seqNb, mode, "",  Signature.computeHash(parameters, clientData.certificate))
 
   }
 

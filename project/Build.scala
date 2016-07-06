@@ -7,7 +7,7 @@ import PlayKeys._
 object ApplicationBuild extends Build {
 
   val appName         = "payzen-module"
-  val appVersion      = "1.2-SNAPSHOT"
+  val appVersion      = "1.3-SNAPSHOT"
 
   val appDependencies = Seq(
     ws,
