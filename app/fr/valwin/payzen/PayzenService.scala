@@ -159,7 +159,7 @@ object PayzenService {
     }
   }
 
-  def prepareData[T](basket: T)(implicit basket2Data: T => Data, clientData: PayzenData):Either[PayzenError, Data] = {
+  def prepareData[T](clientData: PayzenData, basket: T)(implicit basket2Data: T => Data):Either[PayzenError, Data] = {
     val parameters = clientData.clientParameters.toMap ++ basket2Data(basket)
     verifyAndSign(clientData.certificate, parameters)
   }
@@ -185,7 +185,7 @@ object PayzenService {
     DatatypeFactory.newInstance().newXMLGregorianCalendar(xmlDate)
   }
 
-  def confirmOrder(transDate: DateTime, transId: String, seqNb:Int, amount: Long, remiseDate:DateTime )(implicit clientData: PayzenData) = {
+  def confirmOrder(clientData: PayzenData, transDate: DateTime, transId: String, seqNb:Int, amount: Long, remiseDate:DateTime ) = {
     val shopId = clientData.clientParameters.vads_site_id
     val mode = clientData.clientParameters.vads_ctx_mode
     val currency = clientData.clientParameters.vads_currency.toInt
@@ -215,7 +215,7 @@ object PayzenService {
     )
   }
 
-  def cancelOrder(transDate: DateTime, transId: String, seqNb:Int, amount: Long, remiseDate:DateTime)(implicit clientData: PayzenData) = {
+  def cancelOrder(clientData: PayzenData, transDate: DateTime, transId: String, seqNb:Int, amount: Long, remiseDate:DateTime) = {
     val shopId = clientData.clientParameters.vads_site_id
     val mode = clientData.clientParameters.vads_ctx_mode
     val format = DateTimeFormat.forPattern("YYYYMMdd").withZoneUTC()
