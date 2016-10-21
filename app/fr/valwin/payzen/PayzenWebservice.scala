@@ -40,7 +40,7 @@ object PayzenWebservice {
                         uuid: String,
                         ctxMode: String,
                         authToken: String): Either[String, Map[String, String]] = {
-    val view = views.xml.modifyAndValidateEnveloppe(shopId, comment, requestId, transDate, uuid, ctxMode, authToken)
+    val view = views.xml.modifyAndValidateEnveloppe(shopId, comment, requestId, transDate, ctxMode, authToken, uuid)
     val responseFuture = performRequest(view)
     analyzeResponse(Await.result(responseFuture, timeout))
   }

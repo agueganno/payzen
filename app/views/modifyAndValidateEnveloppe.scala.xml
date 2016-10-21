@@ -2,28 +2,19 @@
   comment: String,
   requestId: String,
   transDate: javax.xml.datatype.XMLGregorianCalendar,
-  uuid: String,
   ctxMode: String,
-  authToken: String
+  authToken: String,
+  uuid: String
 )
-<soap11:Envelope xmlns:soap11="http://www.w3.org/2003/05/soap-envelope" xmlns:tns="http://v5.ws.vads.lyra.com/">
-    <soap11:Header xmlns:soapHeader="http://v5.ws.vads.lyra.com/Header">
-        <soapHeader:shopId>@shopId</soapHeader:shopId>
-        <soapHeader:requestId>@requestId</soapHeader:requestId>
-        <soapHeader:timestamp>@transDate.toXMLFormat</soapHeader:timestamp>
-        <soapHeader:mode>@ctxMode</soapHeader:mode>
-        <soapHeader:authToken>@authToken</soapHeader:authToken>
-    </soap11:Header>
-    <soap11:Body>
-        <tns:validatePayment>
-            @if(comment.nonEmpty){
-            <tns:commonRequest>
-                <tns:comment>@comment</tns:comment>
-            </tns:commonRequest>
-            }
-            <tns:queryRequest>
-                <tns:uuid>@uuid</tns:uuid>
-            </tns:queryRequest>
-        </tns:validatePayment>
-    </soap11:Body>
-</soap11:Envelope>
+enveloppeAndHeader(shopId, comment, requestId, transDate, ctxMode, authToken){
+    <tns:validatePayment>
+        @if(comment.nonEmpty){
+        <tns:commonRequest>
+            <tns:comment>@comment</tns:comment>
+        </tns:commonRequest>
+        }
+        <tns:queryRequest>
+            <tns:uuid>@uuid</tns:uuid>
+        </tns:queryRequest>
+    </tns:validatePayment>
+}
