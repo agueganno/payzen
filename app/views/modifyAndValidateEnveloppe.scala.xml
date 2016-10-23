@@ -1,12 +1,12 @@
 @(shopId: String,
-  comment: String,
   requestId: String,
   transDate: javax.xml.datatype.XMLGregorianCalendar,
   ctxMode: String,
   authToken: String,
+  comment: String,
   uuid: String
 )
-enveloppeAndHeader(shopId, comment, requestId, transDate, ctxMode, authToken){
+enveloppeAndHeader(shopId, requestId, transDate, ctxMode, authToken){
     <tns:validatePayment>
         @if(comment.nonEmpty){
         <tns:commonRequest>

@@ -1,5 +1,4 @@
 @(shopId: String,
-  comment: String,
   requestId: String,
   transDate: javax.xml.datatype.XMLGregorianCalendar,
   ctxMode: String,

@@ -185,6 +185,22 @@ object PayzenService {
     DatatypeFactory.newInstance().newXMLGregorianCalendar(xmlDate)
   }
 
+  def getUUIDFromLegacy(clientData: PayzenData, transDate: DateTime, transId: String, seqNumber: Int, remiseDate:DateTime) = {
+    val requestId = java.util.UUID.randomUUID().toString
+    val xDate = toXMLDate(DateTime.now)
+    val authToken = Signature.computeAuthToken(requestId, xDate.toString, clientData.certificate)
+    PayzenWebservice.uuidFromLegacy(
+      clientData.clientParameters.vads_site_id,
+      requestId,
+      xDate,
+      clientData.clientParameters.vads_ctx_mode,
+      authToken,
+      transId,
+      seqNumber,
+      toXMLDate(remiseDate).toString,
+      clientData.certificate
+    )
+  }
   def validatePayment(clientData: PayzenData, transDate: DateTime, transId: String, seqNumber: Int, remiseDate:DateTime) = {
     val comment = ""
     val uuid = ""
@@ -198,7 +214,7 @@ object PayzenService {
       shopId,
       comment,
       requestId,
-      toXMLDate(transDate),
+      xDate,
       uuid,
       mode,
       authToken

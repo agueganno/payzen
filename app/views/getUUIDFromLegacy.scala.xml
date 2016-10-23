@@ -1,0 +1,18 @@
+@(shopId: String,
+        requestId: String,
+        queryDate: javax.xml.datatype.XMLGregorianCalendar,
+        ctxMode: String,
+        authToken: String,
+        transactionId: String,
+        seqNb: Int,
+        creationDate: String
+        )
+enveloppeAndHeader(shopId, requestId, queryDate, ctxMode, authToken){
+<tns:getPaymentUuid>
+    <tns:legacyTransactionKeyRequest>
+        <tns:transactionId>@transactionId</tns:transactionId>
+        <tns:sequenceNumber>@seqNb</tns:sequenceNumber>
+        <tns:creationDate>@creationDate</tns:creationDate>
+    </tns:legacyTransactionKeyRequest>
+</tns:getPaymentUuid>
+}
