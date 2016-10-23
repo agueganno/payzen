@@ -1,5 +1,9 @@
 package fr.valwin.payzen
 
+import java.time.format.DateTimeFormatter
+
+import org.joda.time.DateTime
+import org.joda.time.format.ISODateTimeFormat
 import play.api.libs.ws.{WS, WSResponse}
 import play.mvc.Http
 import play.twirl.api.Xml
@@ -38,8 +42,11 @@ object PayzenWebservice {
   }
 
   def validateResponseHeader(body: Elem, cert: String): Either[String, Unit] = {
+    Logger.warn("AAAAAAAAAAAAAAAAAAAAAAA")
+    Logger.warn(body.toString)
+    Logger.warn("AAAAAAAAAAAAAAAAAAAAAAA")
     val out = for {
-      header <- (body \ "HEADER").headOption
+      header <- (body \\ "HEADER").headOption
       timestamp <- (header \ "timestamp").headOption.map(_.text)
       requestId <- (header \ "requestId").headOption.map(_.text)
       mode <- (header \ "mode").headOption.map(_.text)
@@ -69,7 +76,7 @@ object PayzenWebservice {
 
   def uuidFromLegacy(shopId: String,
                      requestId: String,
-                     queryDate: javax.xml.datatype.XMLGregorianCalendar,
+                     queryDateStr: String,
                      ctxMode: String,
                      authToken: String,
                      transactionId: String,
@@ -77,7 +84,10 @@ object PayzenWebservice {
                      transDate: String,
                      cert: String
                     ): Future[Either[String, String]] = {
-    val view = views.xml.getUUIDFromLegacy(shopId, requestId, queryDate, ctxMode, authToken, transactionId, seqNb, transDate)
+    val view = views.xml.getUUIDFromLegacy(shopId, requestId, queryDateStr, ctxMode, authToken, transactionId, seqNb, transDate)
+    Logger.warn("REQUEST")
+    Logger.warn(view.toString())
+    Logger.warn("REQUEST")
     performRequest(view).map{ response =>
       val xml = response.xml
       val validate = validateResponseHeader(xml, cert)

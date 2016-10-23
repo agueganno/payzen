@@ -2,12 +2,14 @@ package fr.valwin.payzen
 
 import play.api.mvc.{BodyParser, BodyParsers, Results}
 import play.api.libs.concurrent.Execution.Implicits._
-import org.joda.time.DateTime
+import org.joda.time.{DateTime, DateTimeZone}
 import javax.xml.datatype.DatatypeFactory
 import java.util.GregorianCalendar
 
-import org.joda.time.format.DateTimeFormat
+import org.joda.time.format.{DateTimeFormat, ISODateTimeFormat}
 import play.api.libs.json.Json
+
+import scala.concurrent.Future
 
 case class ClientParameters(
                              vads_version: String,
@@ -42,6 +44,7 @@ object PayzenData {
  * @author Valentin Kasas
  */
 object PayzenService {
+  val formatter = ISODateTimeFormat.dateTimeNoMillis()
 
   type Data = Map[String, String]
 
@@ -185,19 +188,19 @@ object PayzenService {
     DatatypeFactory.newInstance().newXMLGregorianCalendar(xmlDate)
   }
 
-  def getUUIDFromLegacy(clientData: PayzenData, transDate: DateTime, transId: String, seqNumber: Int, remiseDate:DateTime) = {
+  def getUUIDFromLegacy(clientData: PayzenData, transDate: DateTime, transId: String, seqNumber: Int): Future[Either[String, String]] = {
     val requestId = java.util.UUID.randomUUID().toString
-    val xDate = toXMLDate(DateTime.now)
-    val authToken = Signature.computeAuthToken(requestId, xDate.toString, clientData.certificate)
+    val nowStr = DateTime.now.withZone(DateTimeZone.UTC).toString(formatter)
+    val authToken = Signature.computeAuthToken(requestId, nowStr, clientData.certificate)
     PayzenWebservice.uuidFromLegacy(
       clientData.clientParameters.vads_site_id,
       requestId,
-      xDate,
+      nowStr,
       clientData.clientParameters.vads_ctx_mode,
       authToken,
       transId,
       seqNumber,
-      toXMLDate(remiseDate).toString,
+      transDate.withZone(DateTimeZone.UTC).toString(formatter),
       clientData.certificate
     )
   }

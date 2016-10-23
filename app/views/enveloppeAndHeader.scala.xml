@@ -1,6 +1,6 @@
 @(shopId: String,
   requestId: String,
-  transDate: javax.xml.datatype.XMLGregorianCalendar,
+  timestamp: String,
   ctxMode: String,
   authToken: String
 )(body: Xml)
@@ -8,7 +8,7 @@
     <soap11:Header xmlns:soapHeader="http://v5.ws.vads.lyra.com/Header">
         <soapHeader:shopId>@shopId</soapHeader:shopId>
         <soapHeader:requestId>@requestId</soapHeader:requestId>
-        <soapHeader:timestamp>@transDate.toXMLFormat</soapHeader:timestamp>
+        <soapHeader:timestamp>@timestamp</soapHeader:timestamp>
         <soapHeader:mode>@ctxMode</soapHeader:mode>
         <soapHeader:authToken>@authToken</soapHeader:authToken>
     </soap11:Header>
