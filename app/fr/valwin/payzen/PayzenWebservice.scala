@@ -1,7 +1,13 @@
 package fr.valwin.payzen
 
 import java.time.format.DateTimeFormatter
+import javax.xml.datatype.XMLGregorianCalendar
 
+import com.lyra.vads.ws.v5.ValidatePaymentResponse.ValidatePaymentResult
+import com.lyra.vads.ws.v5._
+import com.profesorfalken.payzen.webservices.sdk.ServiceResult
+import com.profesorfalken.payzen.webservices.sdk.builder.PaymentBuilder
+import com.profesorfalken.payzen.webservices.sdk.client.ClientV5
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import play.api.libs.ws.{WS, WSResponse}
@@ -68,10 +74,27 @@ object PayzenWebservice {
                         queryDate: javax.xml.datatype.XMLGregorianCalendar,
                         uuid: String,
                         ctxMode: String,
-                        authToken: String): Either[String, Map[String, String]] = {
-    val view = views.xml.modifyAndValidateEnveloppe(shopId, requestId, queryDate, ctxMode, authToken, comment, uuid)
-    val responseFuture = performRequest(view)
-    analyzeResponse(Await.result(responseFuture, timeout))
+                        authToken: String): String = {
+    val client = new ClientV5(new java.util.HashMap[String, String]())
+    val quer = new QueryRequest()
+    quer.setUuid(uuid)
+    val res: ValidatePaymentResult = client.getPaymentAPIImplPort().validatePayment(new CommonRequest(), quer)
+    res.getCommonResponse.getTransactionStatusLabel
+  }
+
+  def buildClientParameters(
+                             shopId: String,
+                             shopKey: String,
+                             mode: String
+                           ) = {
+    val out = new java.util.HashMap[String, String]()
+    out.put("shopId", shopId)
+    out.put("shopKey", shopKey)
+    out.put("mode", mode)
+    out.put("endpointHost", "secure.payzen.eu")
+    out.put("secureConnection", "true")
+    out.put("disableHostnameVerifier", "false")
+    out
   }
 
   def uuidFromLegacy(shopId: String,
@@ -81,24 +104,20 @@ object PayzenWebservice {
                      authToken: String,
                      transactionId: String,
                      seqNb: Int,
-                     transDate: String,
+                     transDate: DateTime,
                      cert: String
-                    ): Future[Either[String, String]] = {
-    val view = views.xml.getUUIDFromLegacy(shopId, requestId, queryDateStr, ctxMode, authToken, transactionId, seqNb, transDate)
-    Logger.warn("REQUEST")
-    Logger.warn(view.toString())
-    Logger.warn("REQUEST")
-    performRequest(view).map{ response =>
-      val xml = response.xml
-      val validate = validateResponseHeader(xml, cert)
-      validate.fold(
-        e => Left(e),
-        s => {
-          val uuid = xml \\ "getPaymentUuidResponse" \ "legacyTransactionKeyResult" \\ "transactionUuid"
-          Right(uuid.text)
-        }
-      )
-    }
+                    ): String = {
+    val params = buildClientParameters(shopId, cert, ctxMode)
+    val client = new ClientV5(params)
+    val api = client.getPaymentAPIImplPort
+
+    val transactionKey = new LegacyTransactionKeyRequest()
+    transactionKey.setTransactionId(transactionId)
+    transactionKey.setCreationDate(PayzenService.toXMLDate(transDate))
+    transactionKey.setSequenceNumber(seqNb)
+
+    val keyResult: GetPaymentUuidResponse.LegacyTransactionKeyResult = api.getPaymentUuid(transactionKey)
+    keyResult.getPaymentResponse.getTransactionUuid
   }
 
   def cancel(shopId: String, transDate: javax.xml.datatype.XMLGregorianCalendar, transId: String, seqNb: Int, ctxMode: String, comment: String, signature: String) = {
