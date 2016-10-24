@@ -224,20 +224,9 @@ object PayzenService {
     )
   }
 
-  def cancelOrder(clientData: PayzenData, transDate: DateTime, transId: String, seqNb:Int, amount: Long, remiseDate:DateTime) = {
-    val shopId = clientData.clientParameters.vads_site_id
-    val mode = clientData.clientParameters.vads_ctx_mode
-    val format = DateTimeFormat.forPattern("YYYYMMdd").withZoneUTC()
-    val parameters:Map[String, String] = Map(
-      "1" -> shopId,
-      "2" -> format.print(transDate),
-      "3" -> transId,
-      "4" -> seqNb.toString,
-      "5" -> mode,
-      "6" -> ""
-    )
-    PayzenWebservice.cancel(shopId, toXMLDate(transDate), transId, seqNb, mode, "",  Signature.computeHash(parameters, clientData.certificate))
-
+  def cancelOrder(clientData: PayzenData, transDate: DateTime, transId: String, seqNb:Int) = {
+    val uuid = getUUIDFromLegacy(clientData, transDate, transId, seqNb)
+    PayzenWebservice.cancel(clientData.clientParameters.vads_site_id, clientData.certificate, clientData.clientParameters.vads_ctx_mode, uuid)
   }
 
   trait PayzenError

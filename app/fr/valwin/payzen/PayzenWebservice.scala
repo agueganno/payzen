@@ -127,8 +127,12 @@ object PayzenWebservice {
     client.getPaymentAPIImplPort.getPaymentDetails(queryRequest)
   }
 
-  def cancel(shopId: String, transDate: javax.xml.datatype.XMLGregorianCalendar, transId: String, seqNb: Int, ctxMode: String, comment: String, signature: String) = {
-    val responseFuture = performRequest(views.xml.cancelEnveloppe(shopId, transDate, transId, seqNb, ctxMode, comment, signature))
-    analyzeResponse(Await.result(responseFuture, timeout))
+  def cancel(shopId: String, cert: String, ctxMode: String, uuid: String) = {
+    val params = buildClientParameters(shopId, cert, ctxMode)
+    val client = new ClientV5(params)
+    val qr = new QueryRequest()
+    qr.setUuid(uuid)
+    val o = client.getPaymentAPIImplPort.cancelPayment(new CommonRequest(), qr)
+    o.getCommonResponse
   }
 }
