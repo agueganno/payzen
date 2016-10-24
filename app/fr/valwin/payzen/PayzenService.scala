@@ -6,6 +6,7 @@ import org.joda.time.{DateTime, DateTimeZone}
 import javax.xml.datatype.DatatypeFactory
 import java.util.GregorianCalendar
 
+import com.lyra.vads.ws.v5.GetPaymentDetailsResponse.GetPaymentDetailsResult
 import org.joda.time.format.{DateTimeFormat, ISODateTimeFormat}
 import play.api.libs.json.Json
 
@@ -189,39 +190,37 @@ object PayzenService {
   }
 
   def getUUIDFromLegacy(clientData: PayzenData, transDate: DateTime, transId: String, seqNumber: Int): String = {
-    val requestId = java.util.UUID.randomUUID().toString
-    val nowStr = DateTime.now.withZone(DateTimeZone.UTC).toString(formatter)
-    val authToken = Signature.computeAuthToken(requestId, nowStr, clientData.certificate)
     PayzenWebservice.uuidFromLegacy(
       clientData.clientParameters.vads_site_id,
-      requestId,
-      nowStr,
+      clientData.certificate,
       clientData.clientParameters.vads_ctx_mode,
-      authToken,
       transId,
       seqNumber,
-      transDate.withZone(DateTimeZone.UTC),
-      clientData.certificate
+      transDate.withZone(DateTimeZone.UTC)
     )
   }
 
-  def validatePayment(clientData: PayzenData, transDate: DateTime, transId: String, seqNumber: Int, remiseDate:DateTime) = {
-    val comment = ""
-    val uuid = ""
-    val requestId = java.util.UUID.randomUUID().toString
-    val transDate = DateTime.now
-    val xDate = toXMLDate(transDate)
-    val shopId = clientData.clientParameters.vads_site_id
-    val mode = clientData.clientParameters.vads_ctx_mode
-    val authToken = Signature.computeAuthToken(requestId, xDate.toString, clientData.certificate)
+  def getTransactionDetails(clientData: PayzenData, uuid: String): GetPaymentDetailsResult = {
+    PayzenWebservice.getPaymentDetails(
+      clientData.clientParameters.vads_site_id,
+      clientData.certificate,
+      clientData.clientParameters.vads_ctx_mode,
+      uuid
+    )
+  }
+
+  def getTransactionDetails(clientData: PayzenData, transDate: DateTime, transId: String, seqNumber: Int): GetPaymentDetailsResult = {
+    val uuid = getUUIDFromLegacy(clientData, transDate, transId, seqNumber)
+    getTransactionDetails(clientData, uuid)
+  }
+
+  def validatePayment(clientData: PayzenData, transDate: DateTime, transId: String, seqNumber: Int) = {
+    val uuid = getUUIDFromLegacy(clientData, transDate, transId, seqNumber)
     PayzenWebservice.modifyAndValidate(
-      shopId,
-      comment,
-      requestId,
-      xDate,
-      uuid,
-      mode,
-      authToken
+      clientData.clientParameters.vads_site_id,
+      clientData.certificate,
+      clientData.clientParameters.vads_ctx_mode,
+      uuid
     )
   }
 

@@ -3,6 +3,7 @@ package fr.valwin.payzen
 import java.time.format.DateTimeFormatter
 import javax.xml.datatype.XMLGregorianCalendar
 
+import com.lyra.vads.ws.v5.GetPaymentDetailsResponse.GetPaymentDetailsResult
 import com.lyra.vads.ws.v5.ValidatePaymentResponse.ValidatePaymentResult
 import com.lyra.vads.ws.v5._
 import com.profesorfalken.payzen.webservices.sdk.ServiceResult
@@ -48,9 +49,6 @@ object PayzenWebservice {
   }
 
   def validateResponseHeader(body: Elem, cert: String): Either[String, Unit] = {
-    Logger.warn("AAAAAAAAAAAAAAAAAAAAAAA")
-    Logger.warn(body.toString)
-    Logger.warn("AAAAAAAAAAAAAAAAAAAAAAA")
     val out = for {
       header <- (body \\ "HEADER").headOption
       timestamp <- (header \ "timestamp").headOption.map(_.text)
@@ -69,17 +67,17 @@ object PayzenWebservice {
   }
 
   def modifyAndValidate(shopId: String,
-                        comment: String,
-                        requestId: String,
-                        queryDate: javax.xml.datatype.XMLGregorianCalendar,
-                        uuid: String,
+                        cert: String,
                         ctxMode: String,
-                        authToken: String): String = {
-    val client = new ClientV5(new java.util.HashMap[String, String]())
+                        uuid: String
+                        ): CommonResponse = {
+    val conf = buildClientParameters(shopId, cert, ctxMode)
+    val client = new ClientV5(conf)
     val quer = new QueryRequest()
     quer.setUuid(uuid)
-    val res: ValidatePaymentResult = client.getPaymentAPIImplPort().validatePayment(new CommonRequest(), quer)
-    res.getCommonResponse.getTransactionStatusLabel
+    val common = new CommonRequest()
+    val res: ValidatePaymentResult = client.getPaymentAPIImplPort.validatePayment(common, quer)
+    res.getCommonResponse
   }
 
   def buildClientParameters(
@@ -98,14 +96,11 @@ object PayzenWebservice {
   }
 
   def uuidFromLegacy(shopId: String,
-                     requestId: String,
-                     queryDateStr: String,
+                     cert: String,
                      ctxMode: String,
-                     authToken: String,
                      transactionId: String,
                      seqNb: Int,
-                     transDate: DateTime,
-                     cert: String
+                     transDate: DateTime
                     ): String = {
     val params = buildClientParameters(shopId, cert, ctxMode)
     val client = new ClientV5(params)
@@ -118,6 +113,18 @@ object PayzenWebservice {
 
     val keyResult: GetPaymentUuidResponse.LegacyTransactionKeyResult = api.getPaymentUuid(transactionKey)
     keyResult.getPaymentResponse.getTransactionUuid
+  }
+
+  def getPaymentDetails(shopId: String,
+                            cert: String,
+                            ctxMode: String,
+                            uuid: String
+                           ): GetPaymentDetailsResult = {
+    val params = buildClientParameters(shopId, cert, ctxMode)
+    val client = new ClientV5(params)
+    val queryRequest = new QueryRequest()
+    queryRequest.setUuid(uuid)
+    client.getPaymentAPIImplPort.getPaymentDetails(queryRequest)
   }
 
   def cancel(shopId: String, transDate: javax.xml.datatype.XMLGregorianCalendar, transId: String, seqNb: Int, ctxMode: String, comment: String, signature: String) = {
